@@ -2,6 +2,7 @@ console.log("Starting ...");
 
 // ### Requirements
 const net = require("net");
+const irc = require("irc");
 
 var proxyHost = "127.0.0.1";
 var proxyPort = 8000;
@@ -26,10 +27,58 @@ exports.utils = new ((function() {
 
 })());
 
-// ### The Bot
+// ### The IRC Bot
+exports.xdcc_bot = new ((function() {
 
+   function _Class() {
+      this.localServer = null;
+      this.ircServer = null;
+   }
+
+   _Class.prototype.create = function(proxySocket) {
+      var self = this;
+
+      // Create a new server
+      self.localServer = net.createServer(function(clientSocket) {
+         console.log("Forwarding traffic to proxy");
+         // When a client connects, do not accept new connections and pipe all trafic
+         clientSocket.pipe(proxySocket);
+         proxySocket.pipe(clientSocket);
+      });
+      self.localServer.listen(function() {
+         console.log("Listening on " + this.address().port);
+
+         // When listening was succes we can connect to it
+         console.log("Connecting to IRC");
+         self.ircServer = new irc.Client(proxyHost, "JJ-Whatismyname", {
+            channels: ["#the.source"],
+            userName: "irc-client",
+            realName: "This is very secret!",
+            port: self.localServer.address().port
+         });
+
+         self.ircServer.addListener('error', function(message) {
+            console.log('error: ', message);
+         });
+
+         self.ircServer.addListener('registered', function(message) {
+            console.log('Registered on server: %s: %s', message.rawCommand, message.command);
+         });
+
+         self.ircServer.addListener('message', function(nick, to, text, message) {
+            console.log('[%s] <%s> %s', to, nick, text);
+         });
+      });
+
+      return this;
+   };
+
+   return _Class;
+
+})());
 
 // Connect to a socks proxy and initiate a new TCP STREAM connection
+var xdccBot = null;
 var proxy = net.connect(proxyPort, proxyHost, function() {
    console.log("Connected to the proxy. Lets handshake");
    var listener = function(data) {
@@ -56,14 +105,13 @@ var proxy = net.connect(proxyPort, proxyHost, function() {
 
          proxy.removeListener("data", listener);
 
-
-
-         proxy.destroy();
+         console.log("Proxy connection succesful. Setting up irc connection.");
+         xdccBot = exports.xdcc_bot.create(proxy);
       };
 
       proxy.on("data", listener);
 
-      var address = exports.utils.ipToHex("83.140.172.211");
+      var address = exports.utils.ipToHex("62.210.109.90");
       var reqbuf = new Buffer(10);
       reqbuf[0] = 0x05;
       reqbuf[1] = 0x01;
