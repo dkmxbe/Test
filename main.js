@@ -4,8 +4,8 @@ console.log("Starting ...");
 const net = require("net");
 const irc = require("irc");
 
-var proxyHost = "127.0.0.1";
-var proxyPort = 8000;
+var proxyHost = "81.21.114.52";
+var proxyPort = 9050;
 
 // ### Utils
 exports.utils = new ((function() {
@@ -49,12 +49,16 @@ exports.xdcc_bot = new ((function() {
          console.log("Listening on " + this.address().port);
 
          // When listening was succes we can connect to it
-         console.log("Connecting to IRC");
-         self.ircServer = new irc.Client(proxyHost, "JJ-Whatismyname", {
+         self.ircServer = new irc.Client("127.0.0.1", "Sunburn", {
+            autoConnect: false,
             channels: ["#the.source"],
-            userName: "irc-client",
+            userName: "burn-client",
             realName: "This is very secret!",
             port: self.localServer.address().port
+         });
+
+         self.ircServer.addListener("raw", function(msg) {
+            console.log(msg);
          });
 
          self.ircServer.addListener('error', function(message) {
@@ -67,6 +71,11 @@ exports.xdcc_bot = new ((function() {
 
          self.ircServer.addListener('message', function(nick, to, text, message) {
             console.log('[%s] <%s> %s', to, nick, text);
+         });
+
+         console.log("Connecting...")
+         self.ircServer.connect(3, function() {
+            console.log("Connected!");
          });
       });
 
@@ -82,19 +91,19 @@ var xdccBot = null;
 var proxy = net.connect(proxyPort, proxyHost, function() {
    console.log("Connected to the proxy. Lets handshake");
    var listener = function(data) {
-      console.log("handshake - received " + data.length);
-      for (var b of data) {
-         console.log(b.toString(16));
-      }
+      //console.log("handshake - received " + data.length);
+      // for (var b of data) {
+      //    console.log(b.toString(16));
+      // }
 
       proxy.removeListener("data", listener);
 
       // Send a connection request
       listener = function(data) {
-         console.log("con req - received " + data.length);
-         for (var b of data) {
-            console.log(b.toString(16));
-         }
+         //console.log("con req - received " + data.length);
+         // for (var b of data) {
+         //    console.log(b.toString(16));
+         // }
 
          // Check server response
          if (data[0] != 0x05)
@@ -105,7 +114,7 @@ var proxy = net.connect(proxyPort, proxyHost, function() {
 
          proxy.removeListener("data", listener);
 
-         console.log("Proxy connection succesful. Setting up irc connection.");
+         console.log("Proxy connection succesful");
          xdccBot = exports.xdcc_bot.create(proxy);
       };
 
